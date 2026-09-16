@@ -1,0 +1,10 @@
+mesa>=3.5,<4
+networkx
+numpy
+pandas
+fastapi
+uvicorn[standard]
+rich
+prompt_toolkit
+pytest
+httpx
