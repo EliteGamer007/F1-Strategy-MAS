@@ -1,0 +1,98 @@
+[
+  {
+    "name": "McLaren",
+    "color": "#F47600",
+    "drivers": [
+      {
+        "code": "NOR",
+        "name": "Norris",
+        "number": "1",
+        "real_grid": 6,
+        "real_finish": 4,
+        "wear_level": "NORMAL",
+        "start_tyre": "HARD"
+      },
+      {
+        "code": "PIA",
+        "name": "Piastri",
+        "number": "81",
+        "real_grid": 8,
+        "real_finish": 11,
+        "wear_level": "HIGH",
+        "start_tyre": "MEDIUM"
+      }
+    ]
+  },
+  {
+    "name": "Ferrari",
+    "color": "#ED1131",
+    "drivers": [
+      {
+        "code": "LEC",
+        "name": "Leclerc",
+        "number": "16",
+        "real_grid": 2,
+        "real_finish": 1,
+        "wear_level": "NORMAL",
+        "start_tyre": "MEDIUM"
+      },
+      {
+        "code": "HAM",
+        "name": "Hamilton",
+        "number": "44",
+        "real_grid": 3,
+        "real_finish": 3,
+        "wear_level": "NORMAL",
+        "start_tyre": "HARD"
+      }
+    ]
+  },
+  {
+    "name": "Red Bull",
+    "color": "#4781D7",
+    "drivers": [
+      {
+        "code": "HAD",
+        "name": "Hadjar",
+        "number": "6",
+        "real_grid": 5,
+        "real_finish": 5,
+        "wear_level": "NORMAL",
+        "start_tyre": "MEDIUM"
+      },
+      {
+        "code": "VER",
+        "name": "Verstappen",
+        "number": "3",
+        "real_grid": 7,
+        "real_finish": 20,
+        "wear_level": "NORMAL",
+        "start_tyre": "SOFT"
+      }
+    ]
+  },
+  {
+    "name": "Mercedes",
+    "color": "#00D7B6",
+    "drivers": [
+      {
+        "code": "ANT",
+        "name": "Antonelli",
+        "number": "12",
+        "real_grid": 1,
+        "real_finish": 15,
+        "wear_level": "NORMAL",
+        "start_tyre": "MEDIUM"
+      },
+      {
+        "code": "RUS",
+        "name": "Russell",
+        "number": "63",
+        "real_grid": 4,
+        "real_finish": 2,
+        "wear_level": "NORMAL",
+        "start_tyre": "SOFT"
+      }
+    ]
+  }
+]

@@ -1,0 +1,5 @@
+# Only needed to regenerate data/ (not needed to run the demo)
+fastf1>=3.8
+scipy
+pandas
+numpy

@@ -1,0 +1,7 @@
+__pycache__/
+.venv/
+.fastf1_cache/
+.pytest_cache/
+node_modules/
+.next/
+*.log

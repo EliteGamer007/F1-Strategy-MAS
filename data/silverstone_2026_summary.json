@@ -1,0 +1,47 @@
+{
+  "event": "2026 British Grand Prix",
+  "date": "2026-07-05",
+  "total_laps": 52,
+  "lap_length_m": 5817.3,
+  "median_clean_lap_s": 95.445,
+  "compounds_used": {
+    "MEDIUM": 551,
+    "HARD": 457,
+    "SOFT": 105
+  },
+  "rainfall": false,
+  "air_temp_c": 24.8,
+  "track_temp_c": 40.0,
+  "neutralised_laps": [
+    {
+      "status": "SAFETY_CAR",
+      "laps": [
+        48,
+        49,
+        50,
+        51,
+        52
+      ]
+    },
+    {
+      "status": "VSC",
+      "laps": [
+        22,
+        39
+      ]
+    },
+    {
+      "status": "VSC_ENDING",
+      "laps": [
+        22,
+        39
+      ]
+    }
+  ],
+  "track": {
+    "corners_source": "F1-Telemetry-Analysis British Grand Prix 2025 layout, snapped onto the 2026 lap",
+    "rotation_deg": 92.0,
+    "mean_overlay_error_m": 3.03
+  },
+  "source": "FastF1 3.8.3"
+}

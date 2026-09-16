@@ -1,0 +1,141 @@
+{
+  "race": {
+    "laps": 20,
+    "real_laps": 52,
+    "scale": 2.6,
+    "note": "20 laps instead of 52; wear and fuel are multiplied by 52/20 so strategy matters the same way"
+  },
+  "base_lap_s": {
+    "value": 94.97,
+    "source": "data",
+    "note": "median driver pace on clean laps"
+  },
+  "driver_pace_offset_s": {
+    "value": {
+      "ALB": 0.88,
+      "ALO": 2.989,
+      "ANT": -1.779,
+      "BEA": 0.96,
+      "BOR": -0.13,
+      "BOT": 2.029,
+      "COL": 0.209,
+      "GAS": 0.13,
+      "HAD": -0.735,
+      "HAM": -1.324,
+      "HUL": 0.187,
+      "LAW": -0.285,
+      "LEC": -1.61,
+      "LIN": -0.254,
+      "NOR": -1.031,
+      "OCO": 0.847,
+      "PER": 1.494,
+      "PIA": -0.827,
+      "RUS": -1.309,
+      "SAI": 0.895,
+      "STR": 3.084,
+      "VER": -1.195
+    },
+    "source": "data",
+    "note": "each driver's pace compared with the median driver (negative = faster)"
+  },
+  "fuel_s_per_lap": {
+    "value": -0.167,
+    "source": "data",
+    "note": "real race -0.064 s/lap, scaled"
+  },
+  "tyres": {
+    "MEDIUM": {
+      "offset_s": 0.0,
+      "wear_s_per_lap": 0.132,
+      "life_laps": 12,
+      "source": "data",
+      "note": "real race 0.051 s/lap from 440 clean laps, scaled"
+    },
+    "SOFT": {
+      "offset_s": -0.6,
+      "wear_s_per_lap": 0.264,
+      "life_laps": 7,
+      "source": "hand",
+      "note": "only 14 clean Soft laps; faster than Medium, wears about 2x"
+    },
+    "HARD": {
+      "offset_s": 0.4,
+      "wear_s_per_lap": 0.079,
+      "life_laps": 18,
+      "source": "hand",
+      "note": "Hard and Medium pace cannot be separated in this race; slower than Medium, wears about 0.6x"
+    },
+    "WET": {
+      "offset_s": 2.5,
+      "wear_s_per_lap": 0.132,
+      "life_laps": 15,
+      "source": "hand",
+      "note": "the real race was dry; used only after the rain command"
+    }
+  },
+  "pit_loss_s": {
+    "value": 21.0,
+    "source": "data",
+    "note": "median of 24 green-flag stops"
+  },
+  "safety_car": {
+    "laps": 3,
+    "lap_time_factor": 1.4,
+    "pit_loss_s": 10.0,
+    "source": "hand"
+  },
+  "rain": {
+    "dry_tyre_penalty_s": 6.0,
+    "wet_tyre_on_dry_track_penalty_s": 3.0,
+    "source": "hand"
+  },
+  "traffic": {
+    "within_s": 1.0,
+    "penalty_s": 0.3,
+    "overtake_min_advantage_s": 0.5,
+    "source": "hand"
+  },
+  "lap_noise_s": {
+    "value": 0.15,
+    "source": "hand"
+  },
+  "raw_fit": {
+    "laps_used": 818,
+    "laps_per_compound": {
+      "MEDIUM": 440,
+      "HARD": 364,
+      "SOFT": 14
+    },
+    "base_lap_s": 94.96902280410774,
+    "driver_offset_s": {
+      "ALB": 0.88,
+      "ALO": 2.989,
+      "ANT": -1.779,
+      "BEA": 0.96,
+      "BOR": -0.13,
+      "BOT": 2.029,
+      "COL": 0.209,
+      "GAS": 0.13,
+      "HAD": -0.735,
+      "HAM": -1.324,
+      "HUL": 0.187,
+      "LAW": -0.285,
+      "LEC": -1.61,
+      "LIN": -0.254,
+      "NOR": -1.031,
+      "OCO": 0.847,
+      "PER": 1.494,
+      "PIA": -0.827,
+      "RUS": -1.309,
+      "SAI": 0.895,
+      "STR": 3.084,
+      "VER": -1.195
+    },
+    "fuel_s_per_lap": -0.06415868619789791,
+    "wear_s_per_lap": {
+      "SOFT": 0.21284226104340223,
+      "MEDIUM": 0.05085301690193987,
+      "HARD": 0.06745887969368558
+    }
+  }
+}
