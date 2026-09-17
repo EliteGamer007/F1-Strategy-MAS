@@ -9,12 +9,12 @@ from sim.strategist import describe
 
 REAL_TIME_SCALE = 8   # at speed x1, 8 race seconds pass every real second (a lap takes about 12 s)
 TICK_S = 0.1
-SPEEDS = (1, 2, 4)
+SPEEDS = ("0.5", "1", "2", "4")
 
 HELP = """Commands:
   start             start the race
   pause / resume    freeze or continue the race
-  speed 1|2|4       race speed (same as the buttons on the page)
+  speed 0.5|1|2|4   race speed (same as the buttons on the page)
   crash <driver>    crash a car out of the race: the safety car comes out
   status            running order, tyres, gaps and each car's next tyre stop
   plan <driver>     the strategist's plan for that car, and how A* and UCS found it
@@ -94,10 +94,11 @@ class Engine:
             self.running = name == "resume"
             return "Race paused." if name == "pause" else "Race resumed."
         if name == "speed":
-            if len(args) != 1 or args[0].lower().lstrip("x") not in {str(s) for s in SPEEDS}:
-                return "Usage: speed 1, speed 2 or speed 4"
-            self.speed = int(args[0].lower().lstrip("x"))
-            return f"Race speed is now x{self.speed}."
+            value = args[0].lower().lstrip("x") if len(args) == 1 else ""
+            if value not in SPEEDS:
+                return "Usage: speed 0.5, speed 1, speed 2 or speed 4"
+            self.speed = float(value)
+            return f"Race speed is now x{value}."
         if name == "restart":
             if args and not args[0].isdigit():
                 return "Usage: restart [seed], for example: restart 7"
@@ -129,7 +130,7 @@ class Engine:
 
     def status(self):
         race = self.race
-        lines = [f"Lap {race.lap}/{race.total_laps}  flag: {race.flag.replace('_', ' ').lower()}  speed: x{self.speed}",
+        lines = [f"Lap {race.lap}/{race.total_laps}  flag: {race.flag.replace('_', ' ').lower()}  speed: x{self.speed:g}",
                  f"{'Pos':<4}{'Driver':<12}{'Team':<10}{'Tyre':<19}{'Stops':<7}{'Gap':<10}Next tyre stop"]
         for row in race.standings():
             tyre = f"{tyre_word(row['tyre'])} ({row['tyre_age']} lap{'' if row['tyre_age'] == 1 else 's'})"

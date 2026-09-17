@@ -28,6 +28,7 @@ def test_commands_explain_mistakes_instead_of_failing():
     assert "Unknown command" in e.command("fly")
     assert "Usage" in e.command("speed 3")
     assert e.command("speed x4") == "Race speed is now x4."
+    assert e.command("speed 0.5") == "Race speed is now x0.5." and e.speed == 0.5
     assert "not running" in e.command("crash NOR")
     assert "No driver called" in e.command("plan XYZ")
     assert "Name one driver" in e.command("why")

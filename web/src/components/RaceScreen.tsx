@@ -6,7 +6,7 @@ import TimingTower from "@/components/TimingTower";
 import TrackMap from "@/components/TrackMap";
 import { sendCommand, useRace } from "@/lib/race";
 
-const SPEEDS = [1, 2, 4];
+const SPEEDS = [0.5, 1, 2, 4];
 
 export default function RaceScreen() {
   const { track, state, feed, connected } = useRace();
@@ -19,7 +19,10 @@ export default function RaceScreen() {
   if (!connected) hint = "Waiting for the race server. Start it with: python run.py";
   else if (state && !state.started) hint = "Type  start  in the terminal to begin the race";
   else if (state?.over) hint = "Race over. Type  restart  in the terminal for a new race";
-  else if (state && !state.running) hint = "Paused. Type  resume  in the terminal";
+  else if (state && !state.running) hint = "Paused: read the decisions, then press play";
+
+  // One button: start the race, pause it, or play it again.
+  const playCommand = !state?.started ? "start" : state.running ? "pause" : "resume";
 
   return (
     <div className="flex h-screen flex-col gap-3 bg-neutral-950 p-3 text-white">
@@ -39,6 +42,13 @@ export default function RaceScreen() {
           </span>
         )}
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => sendCommand(playCommand)}
+            disabled={!connected || state?.over}
+            className="mr-3 w-28 rounded-lg bg-emerald-600 px-4 py-2 text-base font-black text-white transition hover:bg-emerald-500 disabled:opacity-40"
+          >
+            {playCommand === "pause" ? "❚❚ Pause" : "▶ Play"}
+          </button>
           <span className="mr-1 text-xs font-semibold uppercase text-neutral-400">Speed</span>
           {SPEEDS.map((speed) => (
             <button
