@@ -39,6 +39,7 @@ class StrategistAgent(mesa.Agent):
         self.plan = {}                                      # next stop (lap, tyre) or None
         self.planned_lap = {}                               # (code, stops) -> first planned stop lap of that stint
         self.called_in = {}                                 # code -> lap we told the driver to come in
+        self.skipped_for_box = {}                           # code -> lap we chose not to stop on (teammate in the box)
         self.stops_seen = {c.code: 0 for c in cars}
         self.laps_seen = {c.code: 0 for c in cars}
         self.belief = {}                                    # rival code -> {wear level: probability}
@@ -97,7 +98,7 @@ class StrategistAgent(mesa.Agent):
             return
         new = best.stops[0] if best.stops else None
         old = self.plan[car.code]
-        if new == old:
+        if new == old or (new is not None and self.skipped_for_box.get(car.code) == new[0]):
             return
         saving = self.cost_keeping(car, old) - best.cost
         if saving < gain:
@@ -160,10 +161,41 @@ class StrategistAgent(mesa.Agent):
         if (plan is None or plan[0] != car.laps_done + 1 or car.pit_tyre or car.in_pit
                 or self.called_in.get(car.code) == plan[0] or car.dist % race.track.length >= race.pit_entry_m - 50):
             return
+        note = ""
+        wait = self.box_wait(car)
+        if wait > 0:
+            # Both cars want the one pit box this lap: wait behind the teammate, or stay out one more lap?
+            mate = self.teammate(car)
+            one_more_lap = self.cost_keeping(car, (plan[0] + 1, plan[1])) - self.cost_keeping(car, plan)
+            detail = (f"Waiting in the box behind {mate.name}: about {wait:.1f} s. "
+                      f"Staying out one more lap instead: about {one_more_lap:+.1f} s.")
+            if one_more_lap < wait:
+                self.skipped_for_box[car.code] = plan[0]
+                self.change_plan(car, (plan[0] + 1, plan[1]), f"{mate.name} stops just ahead of us in the same pit box, "
+                                 "and one more lap costs less than waiting behind him.", "team", detail)
+                return
+            note = f" Double stack: you come in right behind {mate.name} (about {wait:.0f} s wait), still better than another lap out."
         self.called_in[car.code] = plan[0]
         first = self.planned_lap.get((car.code, car.stops))
         early = first is not None and first - plan[0] >= 2
-        self.radio(car, f"Come in for new {tyre_word(plan[1])} tyres at the end of this lap.", action="pit", tyre=plan[1], early=early)
+        self.radio(car, f"Come in for new {tyre_word(plan[1])} tyres at the end of this lap.{note}",
+                   action="pit", tyre=plan[1], early=early)
+
+    def teammate(self, car):
+        return next(c for c in self.cars if c is not car)
+
+    def box_wait(self, car):
+        """Seconds `car` would wait in the shared pit box if its teammate, just ahead, stops on the same lap."""
+        race = self.model
+        mate = self.teammate(car)
+        mate_plan = self.plan.get(mate.code)
+        leaving_box = mate.in_pit and mate.stopped_in_box and mate.stop_left <= 0
+        stopping = mate.state in ("RUNNING", "PIT") and not leaving_box and (
+            mate.in_pit or mate.pit_tyre or (mate_plan is not None and mate_plan[0] == car.laps_done + 1))
+        gap = race.gap_between(mate, car) if stopping else None
+        if gap is None or gap < 0 or car.laps_done + 1 >= race.total_laps - 1:
+            return 0.0
+        return max(0.0, race.box_turnaround_s - gap)
 
     # ------------------------------------------------------------------ reading messages
     def read(self, msg):
@@ -305,7 +337,7 @@ class StrategistAgent(mesa.Agent):
                   f"wait a lap -> {min((v for (o, _), v in leaves.items() if o == 'STAY'), default=float('nan')):+.1f} s "
                   f"(+ means ahead of {rival.name}); {pruned} option(s) pruned by alpha-beta.")
         outcome = "keeps us ahead" if value >= 0 else "loses the least time to them"
-        if move == "PIT" and plan[0] > now:
+        if move == "PIT" and plan[0] > now and self.skipped_for_box.get(car.code) != now:
             self.change_plan(car, (now, plan[1]), f"{because} Stopping now {outcome}.", "rival", detail)
         elif move == "STAY" and plan[0] == now and rival_pitted:
             self.change_plan(car, (now + 1, plan[1]), f"{because} Staying out one more lap {outcome}.", "rival", detail)

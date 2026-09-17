@@ -99,6 +99,27 @@ def test_rain_makes_teams_switch_to_wet_tyres_and_back():
     assert all(c.used & {"SOFT", "MEDIUM", "HARD"} for c in race.cars.values())
 
 
+@pytest.mark.parametrize("scenario", ["safety car", "rain"])
+def test_teammates_sharing_the_pit_box_double_stack_or_stay_out_a_lap(scenario):
+    race = Race(1)
+    race.start()
+    run(race, lambda r: r.lap == 4)
+    if scenario == "safety car":
+        race.crash("NOR", manual=True)
+    else:
+        race.start_rain()
+        race.rain_target = 0.8
+    seen = len(race.board.feed)
+    run(race, lambda r: r.lap == 9)
+    new = race.board.feed[seen:]
+    stayed_out = [i for i in new if isinstance(i, DecisionChange) and i.cause == "team"]
+    doubled = [i for i in new if "Double stack" in getattr(i, "text", "")]
+    assert stayed_out or doubled
+    for change in stayed_out:
+        assert "Waiting in the box" in change.detail
+    assert len({(c.driver, c.before) for c in stayed_out}) == len(stayed_out), "the same box decision was repeated"
+
+
 def test_team_radio_stays_inside_the_team():
     board = MessageBoard()
     board.join("Norris", "McLaren")

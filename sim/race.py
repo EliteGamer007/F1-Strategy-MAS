@@ -16,6 +16,7 @@ GRID_GAP_M = 8.0
 FOLLOW_GAP_M = 12.0       # closest a car can follow another when it cannot pass
 SAFETY_CAR_GAP_M = 40.0   # cars line up this far apart behind the safety car
 STOP_S = 2.5              # time stationary in the pit box
+BOX_RESET_S = 3.0         # the crew needs this long to get ready for the second car in the same box
 FIRST_LAP_EXTRA_S = 3.0   # standing start
 CHECKPOINT_M = 100.0      # timing points used for the gaps
 YELLOW_ZONE_M = 400.0
@@ -65,6 +66,7 @@ class Race(mesa.Model):
         self.board = MessageBoard()
         self.total_laps = self.model.laps
         self.pit_entry_m = PIT_ENTRY_M
+        self.box_turnaround_s = STOP_S + BOX_RESET_S
         self.clock = 0.0
         self.started = False
         self.over = False
@@ -315,7 +317,7 @@ class Race(mesa.Model):
             wait = max(0.0, self.box_free_at.get(car.team, 0.0) - self.clock)
             car.stop_left = wait + STOP_S
             car.stopped_in_box = True
-            self.box_free_at[car.team] = self.clock + car.stop_left
+            self.box_free_at[car.team] = self.clock + car.stop_left + BOX_RESET_S
         elif car.in_pit and car.stopped_in_box and self.passes(car, before, after, PIT_EXIT_M):
             car.in_pit, car.state, car.stopped_in_box = False, "RUNNING", False
         car.dist = after
