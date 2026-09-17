@@ -34,7 +34,8 @@ Type `start` in the first terminal. The page shows:
 - **Timing tower**: position, tyres and their age, gap to the leader, stops, next planned stop. Cars in the pit lane are highlighted in amber, crashed cars in red.
 - **Track map**: cars move on the real 2026 Silverstone layout; cars changing tyres are drawn on the pit lane beside the main straight.
 - **Team radio & decisions**: a scrolling list of every message and every plan change (before, after and why).
-- **×1 / ×2 / ×4 buttons** to speed the race up and reach the finish in time.
+- **Play / pause button** to freeze the race and read the decisions, and **×0.5 / ×1 / ×2 / ×4 buttons** for race speed.
+- **Weather chip**: dry, or light / medium / heavy rain and whether it is getting heavier or lighter.
 
 ## Terminal commands
 
@@ -42,7 +43,8 @@ Type `start` in the first terminal. The page shows:
 |---|---|
 | `start` | Start the race |
 | `pause` / `resume` | Freeze or continue the race |
-| `speed 1`, `speed 2`, `speed 4` | Race speed (same as the buttons on the page) |
+| `speed 0.5`, `speed 1`, `speed 2`, `speed 4` | Race speed (same as the buttons on the page) |
+| `rain start` / `rain stop` | Start or stop rain; how heavy it gets is random (set by the seed) |
 | `crash <driver>` | Crash a car out of the race; the safety car comes out automatically |
 | `status` | Running order, tyres, gaps and each car's next tyre stop |
 | `plan <driver>` | The strategist's plan for that car, how many plans A* and UCS checked, and the team's guesses of rival tyre wear |
@@ -56,9 +58,12 @@ Drivers can be named by code or surname, e.g. `crash VER` or `plan piastri`.
 
 - Every car must use two different tyre types, so every car stops at least once. Strategists announce a plan at the start and change it when something happens.
 - **Driver reports change plans**: when a driver says his tyres are worn, or that they still feel good, the strategist re-plans with A*.
-- **Rival teams change plans**: when a rival is within 3 seconds, or stops for tyres, the strategist runs minimax to decide whether to stop now or wait.
+- **Rival teams change plans**: when a rival is within 3 seconds, or stops for tyres, the strategist runs minimax to decide whether to stop now or wait. The message names the move: **undercut** (stop first to get ahead), **cover** (stop to stay ahead of a rival's undercut) or **overcut** (stay out while the rival is in the pits). A few laps later the strategist tells the driver whether it worked.
+- **Overtakes are decided by the drivers**: a driver attacks on a long straight only if clearly faster and the tyres are not worn out, and says so on the radio. The driver ahead defends (costs a little lap time), lets a teammate through, or does not fight on worn-out tyres. The timing screen reports the result.
+- **Rain** (`rain start`): the rain level drifts towards a random target. Dry tyres get slower as it rains harder; wet tyres are faster above light rain. Teams decide to stop for wet tyres now, or wait a lap if the rain is light and not getting heavier, and switch back to dry tyres when it dries.
+- **Double stack or stay out**: if both cars of a team want to stop on the same lap, the second car would wait in the pit box. The strategist compares that wait with the time lost by staying out one more lap and picks the cheaper one (also under the safety car).
 - **Crashes**: both Ferraris crash at random points in every race. The first crash brings a yellow flag (drivers slow down near it); the second brings out the **safety car**. `crash <driver>` always brings out the safety car. Behind the safety car nobody can overtake and a tyre stop is much cheaper, so every strategist re-plans at once.
-- The race ends with a summary of how many plans were changed by drivers, rivals and the safety car.
+- The race ends with a summary of how many plans were changed by drivers, rivals, incidents, the weather and the pit box.
 
 ## The Bayesian tyre-wear estimator (and why it is Bayesian)
 

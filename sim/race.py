@@ -260,11 +260,11 @@ class Race(mesa.Model):
     def summary(self):
         winner = min((c for c in self.cars.values() if c.finish_time is not None), key=lambda c: c.finish_time, default=None)
         changes = [item for item in self.board.feed if hasattr(item, "cause")]
-        count = {cause: sum(1 for c in changes if c.cause == cause) for cause in ("driver", "rival", "incident", "weather", "laps")}
+        count = {cause: sum(1 for c in changes if c.cause == cause) for cause in ("driver", "rival", "incident", "weather", "team", "laps")}
         return (f"Race over. {winner.name if winner else 'Nobody'} wins! The strategists changed a plan {len(changes)} times: "
                 f"{count['driver']} after a driver's message, {count['rival']} because of a rival team, "
                 f"{count['incident']} because of the safety car, {count['weather']} because of rain, "
-                f"and {count['laps']} from new lap times.")
+                f"{count['team']} to avoid waiting in the pit box, and {count['laps']} from new lap times.")
 
     # ------------------------------------------------------------------ physics
     def step(self):
