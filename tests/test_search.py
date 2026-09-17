@@ -4,7 +4,7 @@ import random
 import pytest
 
 from sim.model import LapModel
-from sim.search import PitState, bayes_update, minimax_duel, plan_stops
+from sim.search import PitState, bayes_update, minimax_duel, plan_stops, tyre_rule_met
 from sim.strategist import UNIFORM, wear_log_likelihood
 
 
@@ -54,6 +54,16 @@ def test_plan_from_new_tyres_lists_only_real_stops(model):
     assert 1 <= len(plan.stops) <= 2
     assert all(0 < lap < 20 for lap, _ in plan.stops)
     assert {tyre for _, tyre in plan.stops} - {"MEDIUM"}
+
+
+def test_wet_tyres_are_chosen_only_when_the_forecast_makes_them_worth_a_stop(model):
+    stopped = PitState(12, "HARD", 4, frozenset({"MEDIUM", "HARD"}))  # tyre rule already met
+    steady_light = plan_stops(model, stopped, 20, 21.0, rain=lambda lap: 0.3)
+    getting_heavier = plan_stops(model, stopped, 20, 21.0, rain=lambda lap: min(1.0, 0.3 + 0.15 * (lap - 13)))
+    medium = plan_stops(model, stopped, 20, 21.0, rain=lambda lap: 0.6)
+    assert steady_light.stops == []
+    assert getting_heavier.stops[0][1] == "WET" and medium.stops[0][1] == "WET"
+    assert tyre_rule_met({"WET"}) and tyre_rule_met({"SOFT", "HARD"}) and not tyre_rule_met({"MEDIUM"})
 
 
 def test_minimax_example_from_the_plan_document():

@@ -66,7 +66,7 @@
       "note": "Hard and Medium pace cannot be separated in this race; slower than Medium, wears about 0.6x"
     },
     "WET": {
-      "offset_s": 2.5,
+      "offset_s": 0.0,
       "wear_s_per_lap": 0.132,
       "life_laps": 15,
       "source": "hand",
@@ -85,9 +85,11 @@
     "source": "hand"
   },
   "rain": {
-    "dry_tyre_penalty_s": 6.0,
-    "wet_tyre_on_dry_track_penalty_s": 3.0,
-    "source": "hand"
+    "dry_tyre_s_at_full_rain": 12.0,
+    "wet_tyre_s_when_dry": 3.0,
+    "wet_tyre_s_at_full_rain": 2.0,
+    "source": "hand",
+    "note": "the real race was dry; seconds added per lap, scaled by rain level 0 (dry) to 1 (heaviest)"
   },
   "traffic": {
     "within_s": 1.0,

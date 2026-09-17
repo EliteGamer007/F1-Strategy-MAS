@@ -15,7 +15,7 @@ export type Car = {
   y: number;
   state: "RUNNING" | "PIT" | "OUT" | "FINISHED";
   in_pit: boolean;
-  tyre: "SOFT" | "MEDIUM" | "HARD";
+  tyre: "SOFT" | "MEDIUM" | "HARD" | "WET";
   tyre_age: number;
   stops: number;
   gap: string;
@@ -33,6 +33,7 @@ export type RaceState = {
   over: boolean;
   speed: number;
   seed: number;
+  rain: { level: number; label: "dry" | "light" | "medium" | "heavy"; trend: string };
   cars: Car[];
   crashes: { code: string; x: number; y: number }[];
   safety_car: [number, number] | null;
@@ -120,4 +121,4 @@ export function sendCommand(command: string) {
   });
 }
 
-export const TYRE_COLORS = { SOFT: "#E8002D", MEDIUM: "#FFF200", HARD: "#EDEDED" };
+export const TYRE_COLORS = { SOFT: "#E8002D", MEDIUM: "#FFF200", HARD: "#EDEDED", WET: "#0067FF" };

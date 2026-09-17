@@ -5,7 +5,7 @@ import math
 import time
 from dataclasses import dataclass
 
-from sim.model import TYRES
+from sim.model import ALL_TYRES, TYRES
 
 
 @dataclass(frozen=True)
@@ -24,26 +24,35 @@ class Plan:
     ms: float
 
 
-def plan_stops(model, start, total_laps, pit_loss, wear=1.0, pace=0.0, use_heuristic=True):
+def tyre_rule_met(used):
+    """Two different dry tyres, or wet tyres at some point in the race."""
+    return "WET" in used or len(used & set(TYRES)) >= 2
+
+
+def plan_stops(model, start, total_laps, pit_loss, wear=1.0, pace=0.0, use_heuristic=True, rain=None):
     """Cheapest pit-stop plan from `start` to the finish.
 
     `pit_loss` is seconds per stop, or a function of the lap the stop happens at (stops are cheaper
-    under the safety car). A* when use_heuristic is True, uniform-cost search when False. The heuristic
-    is the cost of a relaxed problem (no tyre wear, fastest tyre, one cheapest stop only if the tyre rule
-    still needs it), so it never overestimates and A* returns the same cost as UCS.
+    under the safety car). `rain` is a forecast: a function from lap to rain level (0 dry, 1 heaviest);
+    wet tyres are only considered when some rain is forecast. A* when use_heuristic is True, uniform-cost
+    search when False. The heuristic is the cost of a relaxed problem (no tyre wear, fastest tyre for the
+    forecast weather, one cheapest stop only if the tyre rule still needs it), so it never overestimates
+    and A* returns the same cost as UCS.
     """
     began = time.perf_counter()
     stop_cost = pit_loss if callable(pit_loss) else (lambda lap: pit_loss)
+    rain = rain or (lambda lap: 0.0)
     cheapest_stop = min(stop_cost(lap) for lap in range(start.lap, total_laps + 1))
+    tyres = ALL_TYRES if any(rain(lap) > 0 for lap in range(start.lap + 1, total_laps + 1)) else TYRES
     # fastest_rest[k] = sum of the fastest possible laps from lap k+1 to the finish
     fastest_rest = [0.0] * (total_laps + 2)
     for lap in range(total_laps, 0, -1):
-        fastest_rest[lap - 1] = fastest_rest[lap] + model.fastest_lap(lap, pace)
+        fastest_rest[lap - 1] = fastest_rest[lap] + model.fastest_lap(lap, pace, rain(lap), tyres)
 
     def h(s):
         if not use_heuristic:
             return 0.0
-        return fastest_rest[s.lap] + (cheapest_stop if len(s.used) < 2 and s.lap < total_laps else 0.0)
+        return fastest_rest[s.lap] + (cheapest_stop if not tyre_rule_met(s.used) and s.lap < total_laps else 0.0)
 
     counter = itertools.count()
     frontier = [(h(start), 0.0, next(counter), start)]
@@ -56,13 +65,15 @@ def plan_stops(model, start, total_laps, pit_loss, wear=1.0, pace=0.0, use_heuri
             continue
         expanded += 1
         if state.lap == total_laps:
-            if len(state.used) >= 2:
+            if tyre_rule_met(state.used):
                 return Plan(_stops(parent, state), g, expanded, (time.perf_counter() - began) * 1000)
             continue
         lap = state.lap + 1
-        moves = [(PitState(lap, state.tyre, state.age + 1, state.used), model.lap_time(state.tyre, state.age + 1, lap, wear, pace), False)]
-        for tyre in TYRES:
-            moves.append((PitState(lap, tyre, 1, state.used | {tyre}), stop_cost(state.lap) + model.lap_time(tyre, 1, lap, wear, pace), True))
+        moves = [(PitState(lap, state.tyre, state.age + 1, state.used),
+                  model.lap_time(state.tyre, state.age + 1, lap, wear, pace, rain(lap)), False)]
+        for tyre in tyres:
+            moves.append((PitState(lap, tyre, 1, state.used | {tyre}),
+                          stop_cost(state.lap) + model.lap_time(tyre, 1, lap, wear, pace, rain(lap)), True))
         for child, step_cost, pitted in moves:
             g_child = g + step_cost
             if g_child < best_g.get(child, float("inf")):

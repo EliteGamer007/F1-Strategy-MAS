@@ -16,6 +16,7 @@ HELP = """Commands:
   pause / resume    freeze or continue the race
   speed 0.5|1|2|4   race speed (same as the buttons on the page)
   crash <driver>    crash a car out of the race: the safety car comes out
+  rain start|stop   start or stop rain (how hard it rains is random)
   status            running order, tyres, gaps and each car's next tyre stop
   plan <driver>     the strategist's plan for that car, and how A* and UCS found it
   why <driver>      why that car's plan last changed
@@ -69,6 +70,7 @@ class Engine:
         race = self.race
         return {"lap": race.lap, "total_laps": race.total_laps, "flag": race.flag, "started": race.started,
                 "running": self.running, "over": race.over, "speed": self.speed, "seed": self.seed,
+                "rain": {"level": round(race.rain, 2), "label": race.rain_label, "trend": race.rain_trend()},
                 "cars": race.standings(), "crashes": race.crash_marks, "safety_car": race.safety_car_xy()}
 
     # ------------------------------------------------------------------ commands
@@ -106,6 +108,12 @@ class Engine:
             return f"New race on the grid (seed {self.seed}). Type 'start' when ready."
         if name == "status":
             return self.status()
+        if name == "rain":
+            if len(args) != 1 or args[0].lower() not in ("start", "stop"):
+                return "Usage: rain start  or  rain stop"
+            if not self.race.started or self.race.over:
+                return "The race is not running. Type 'start' first."
+            return self.race.start_rain() if args[0].lower() == "start" else self.race.stop_rain()
         if name in ("crash", "plan", "why"):
             car = self.find_car(args)
             if isinstance(car, str):
@@ -130,7 +138,7 @@ class Engine:
 
     def status(self):
         race = self.race
-        lines = [f"Lap {race.lap}/{race.total_laps}  flag: {race.flag.replace('_', ' ').lower()}  speed: x{self.speed:g}",
+        lines = [f"Lap {race.lap}/{race.total_laps}  flag: {race.flag.replace('_', ' ').lower()}  weather: {race.rain_label}  speed: x{self.speed:g}",
                  f"{'Pos':<4}{'Driver':<12}{'Team':<10}{'Tyre':<19}{'Stops':<7}{'Gap':<10}Next tyre stop"]
         for row in race.standings():
             tyre = f"{tyre_word(row['tyre'])} ({row['tyre_age']} lap{'' if row['tyre_age'] == 1 else 's'})"

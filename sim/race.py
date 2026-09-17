@@ -20,6 +20,8 @@ FIRST_LAP_EXTRA_S = 3.0   # standing start
 CHECKPOINT_M = 100.0      # timing points used for the gaps
 YELLOW_ZONE_M = 400.0
 PLAN_HIGHLIGHT_S = 30.0   # how long a car is highlighted after its plan changed
+RAIN_CHANGE_PER_S = 0.006 # how quickly the track gets wetter or drier (rain level 0 dry .. 1 heaviest)
+RAIN_DRIFT = 0.2          # each lap the rain may get this much heavier or lighter (random)
 
 
 @dataclass
@@ -75,6 +77,11 @@ class Race(mesa.Model):
         self.first_checkpoint = {}
         self.pass_attempts = {}
         self.track_order = {}
+        self.raining = False
+        self.rain = 0.0
+        self.rain_target = 0.0
+        self.rain_label = "dry"
+        self.rain_lap = 0
 
         teams = json.loads((DATA / "teams.json").read_text())
         drivers = [(team, d) for team in teams for d in team["drivers"]]
@@ -114,7 +121,7 @@ class Race(mesa.Model):
         return self.model.pit_loss
 
     def target_lap_time(self, car, lap):
-        t = self.model.lap_time(car.tyre, car.age + 1, lap, car.wear, car.pace) + self.random.gauss(0.0, self.model.noise)
+        t = self.model.lap_time(car.tyre, car.age + 1, lap, car.wear, car.pace, self.rain) + self.random.gauss(0.0, self.model.noise)
         return t + (FIRST_LAP_EXTRA_S if lap == 1 else 0.0)
 
     def racing_order(self):
@@ -146,6 +153,18 @@ class Race(mesa.Model):
     def post(self, sender, text, **data):
         return self.board.post(self.lap, sender, EVERYONE, "EVENT", text, **data)
 
+    def rain_trend(self):
+        if self.rain_target > self.rain + 0.05:
+            return "getting heavier"
+        if self.rain_target < self.rain - 0.05:
+            return "easing off"
+        return "steady"
+
+    def rain_forecast(self, lap):
+        """The forecast every team can see: today's rain level, carried forward by its trend."""
+        change = {"getting heavier": 0.15, "easing off": -0.15, "steady": 0.0}[self.rain_trend()]
+        return min(1.0, max(0.0, self.rain + change * max(0, lap - self.lap)))
+
     # ------------------------------------------------------------------ race control
     def start(self):
         self.started = True
@@ -171,6 +190,39 @@ class Race(mesa.Model):
         self.post("Race control", f"Yellow flag near Turn {corner}: drivers must slow down there.")
         return f"{car.name} crashed. Yellow flag near Turn {corner}."
 
+    def start_rain(self):
+        if self.raining:
+            return "It is already raining."
+        leader = self.leader()
+        self.raining = True
+        self.rain_target = self.random.uniform(0.3, 1.0)  # how hard it rains comes from the race seed
+        self.rain_lap = leader.laps_done if leader else 0
+        self.post("Race control", "It has started to rain.", rain="starting")
+        return "Rain started. How hard it rains is random and can change every lap."
+
+    def stop_rain(self):
+        if not self.raining:
+            return "It is not raining."
+        self.raining, self.rain_target = False, 0.0
+        self.post("Race control", "The rain has stopped. The track will dry over the next lap or so.", rain="stopping")
+        return "Rain stopped. The track will dry gradually."
+
+    def update_rain(self):
+        leader = self.leader()
+        if self.raining and leader and leader.laps_done > self.rain_lap:
+            self.rain_lap = leader.laps_done
+            self.rain_target = min(1.0, max(0.15, self.rain_target + self.random.uniform(-RAIN_DRIFT, RAIN_DRIFT)))
+        step = RAIN_CHANGE_PER_S * DT
+        self.rain = min(self.rain_target, self.rain + step) if self.rain < self.rain_target else max(self.rain_target, self.rain - step)
+        label = "dry" if self.rain < 0.05 else "light" if self.rain < 0.4 else "medium" if self.rain < 0.7 else "heavy"
+        if label == self.rain_label:
+            return
+        self.rain_label = label
+        for car in self.cars.values():
+            if car.state == "RUNNING":
+                car.lap_target = self.target_lap_time(car, car.laps_done + 1)
+        self.post("Race control", "The track is dry again." if label == "dry" else f"The rain is now {label} and {self.rain_trend()}.", rain=label)
+
     def deploy_safety_car(self):
         leader = self.leader()
         if leader is None:
@@ -183,11 +235,12 @@ class Race(mesa.Model):
             self.post("Race control", "Safety car is out: everyone slows down and follows in a line. No overtaking.", safety_car=True)
 
     def race_control(self):
+        self.update_rain()
         for car in self.cars.values():
             if car.crash_at is not None and car.state == "RUNNING" and car.dist >= car.crash_at:
                 self.crash(car.code, manual=False)
-            if self.flag != "GREEN":
-                car.lap_clean = False  # lap times under yellow or the safety car say nothing about tyre wear
+            if self.flag != "GREEN" or self.rain > 0:
+                car.lap_clean = False  # lap times under yellow, the safety car or rain say nothing about tyre wear
         if self.flag == "YELLOW" and self.clock > self.yellow["until"]:
             self.flag, self.yellow = "GREEN", None
             self.post("Race control", "Track clear: green flag, racing as normal.")
@@ -202,10 +255,11 @@ class Race(mesa.Model):
     def summary(self):
         winner = min((c for c in self.cars.values() if c.finish_time is not None), key=lambda c: c.finish_time, default=None)
         changes = [item for item in self.board.feed if hasattr(item, "cause")]
-        count = {cause: sum(1 for c in changes if c.cause == cause) for cause in ("driver", "rival", "incident", "laps")}
+        count = {cause: sum(1 for c in changes if c.cause == cause) for cause in ("driver", "rival", "incident", "weather", "laps")}
         return (f"Race over. {winner.name if winner else 'Nobody'} wins! The strategists changed a plan {len(changes)} times: "
                 f"{count['driver']} after a driver's message, {count['rival']} because of a rival team, "
-                f"{count['incident']} because of the safety car, and {count['laps']} from new lap times.")
+                f"{count['incident']} because of the safety car, {count['weather']} because of rain, "
+                f"and {count['laps']} from new lap times.")
 
     # ------------------------------------------------------------------ physics
     def step(self):

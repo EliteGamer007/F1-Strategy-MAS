@@ -35,6 +35,11 @@ export default function RaceScreen() {
           </p>
           {hint && <p className="mt-1 text-sm font-semibold text-amber-300">{hint}</p>}
         </div>
+        {state && state.rain.label !== "dry" && (
+          <span className="rounded-lg border border-sky-400/50 bg-sky-500/15 px-3 py-1.5 text-sm font-semibold text-sky-200">
+            Rain: {state.rain.label}, {state.rain.trend}
+          </span>
+        )}
         {state && (
           <span className="text-2xl font-black">
             Lap {state.lap}

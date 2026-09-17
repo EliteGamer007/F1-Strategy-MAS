@@ -63,7 +63,7 @@ class StrategistAgent(mesa.Agent):
     def best_plan(self, car, use_heuristic=True):
         race = self.model
         return plan_stops(race.model, self.start_state(car), race.total_laps, race.stop_loss,
-                          self.wear[car.code], car.pace, use_heuristic)
+                          self.wear[car.code], car.pace, use_heuristic, race.rain_forecast)
 
     def cost_keeping(self, car, stop):
         """Predicted time if we keep the current next stop instead of the new best plan."""
@@ -74,12 +74,13 @@ class StrategistAgent(mesa.Agent):
         time = 0.0
         for lap in range(s.lap + 1, stop[0] + 1):
             s = PitState(lap, s.tyre, s.age + 1, s.used)
-            time += model.lap_time(s.tyre, s.age, lap, self.wear[car.code], car.pace)
+            time += model.lap_time(s.tyre, s.age, lap, self.wear[car.code], car.pace, race.rain_forecast(lap))
         lap = stop[0] + 1
-        time += race.stop_loss(stop[0]) + model.lap_time(stop[1], 1, lap, self.wear[car.code], car.pace)
+        time += race.stop_loss(stop[0]) + model.lap_time(stop[1], 1, lap, self.wear[car.code], car.pace, race.rain_forecast(lap))
         s = PitState(lap, stop[1], 1, s.used | {stop[1]})
         try:
-            return time + plan_stops(model, s, race.total_laps, race.stop_loss, self.wear[car.code], car.pace).cost
+            return time + plan_stops(model, s, race.total_laps, race.stop_loss, self.wear[car.code], car.pace,
+                                     rain=race.rain_forecast).cost
         except ValueError:
             return float("inf")
 
@@ -180,12 +181,17 @@ class StrategistAgent(mesa.Agent):
                        else "The safety car has gone in, so tyre stops cost the normal time again.")
             for own in self.cars:
                 self.replan(own, because, "incident")
+        elif "rain" in msg.data:
+            for own in self.cars:
+                self.replan(own, f"Weather: {msg.text}", "weather")
 
     def read_driver(self, car, msg):
         race = self.model
         if msg.kind == "INFO" and "wear" in msg.data:
             self.learn_wear(car, msg.data)
             self.replan(car, f"{car.name} said his tyres are {msg.data['wear']:.0%} worn.", "driver")
+        elif msg.kind == "INFO" and msg.data.get("drying"):
+            self.replan(car, f"{car.name} said the track is drying.", "driver")
         elif msg.kind == "INFO" and "rival" in msg.data:
             self.duel(car, race.cars[msg.data["rival"]], rival_pitted=False,
                       because=f"{car.name} is stuck behind {race.cars[msg.data['rival']].name}.")
@@ -197,6 +203,9 @@ class StrategistAgent(mesa.Agent):
                 return  # the change of plan was already radioed
             if plan is None:
                 self.radio(car, "Stay out: no more stops needed, bring it home.", action="stay")
+            elif plan[0] > car.laps_done + 1 and race.rain_label != "dry" and car.tyre != "WET":
+                self.radio(car, f"Not yet. The rain is {race.rain_label} and {race.rain_trend()}, so dry tyres are still "
+                                f"faster for now. We plan to {describe(plan)}.", action="stay")
             elif plan[0] > car.laps_done + 1:
                 self.radio(car, f"Not yet. Stay out: we plan to {describe(plan)}.", action="stay")
         elif msg.kind == "REPLY" and msg.data.get("push_back"):
@@ -272,7 +281,7 @@ class StrategistAgent(mesa.Agent):
         if not rival_pitted and len(rival.used) >= 2:
             return  # the rival does not need to stop, so there is nothing to time against
 
-        rival_next = "HARD" if "HARD" not in rival.used else "MEDIUM"
+        rival_next = "WET" if race.rain_forecast(now + 1) > 0.25 else "HARD" if "HARD" not in rival.used else "MEDIUM"
         rival_age = rival.age + now - rival.laps_done
 
         def window(tyre, age, wear, stop_lap, new_tyre):
@@ -282,7 +291,7 @@ class StrategistAgent(mesa.Agent):
                     tyre, age = new_tyre, 0
                     total += race.stop_loss(stop_lap)
                 age += 1
-                total += race.model.lap_time(tyre, age, lap, wear)
+                total += race.model.lap_time(tyre, age, lap, wear, rain=race.rain_forecast(lap))
             return total
 
         def evaluate(ours, theirs):

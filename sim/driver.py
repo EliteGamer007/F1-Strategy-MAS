@@ -36,6 +36,14 @@ class DriverAgent(mesa.Agent):
             if car.pit_tyre is None and race.flag != "CHEQUERED":
                 self.say("REQUEST", "Should I come in for new tyres?")
 
+        if race.rain_label != "dry" and car.tyre != "WET" and ("rain", race.rain_label) not in self.said and car.pit_tyre is None:
+            self.said.add(("rain", race.rain_label))
+            self.say("REQUEST", f"It's raining ({race.rain_label}) and I'm on dry tyres. Should I come in for wet tyres?")
+
+        if car.tyre == "WET" and race.rain < 0.15 and not race.raining and ("drying", car.stops) not in self.said:
+            self.said.add(("drying", car.stops))
+            self.say("INFO", "The track is drying and my wet tyres are losing grip.", drying=True)
+
         if race.flag == "SAFETY_CAR" and ("safety car", race.safety_car_count) not in self.said and car.pit_tyre is None:
             self.said.add(("safety car", race.safety_car_count))
             self.say("REQUEST", "The safety car is out. Should I come in for new tyres now?")

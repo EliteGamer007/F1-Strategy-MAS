@@ -30,12 +30,16 @@ def test_commands_explain_mistakes_instead_of_failing():
     assert e.command("speed x4") == "Race speed is now x4."
     assert e.command("speed 0.5") == "Race speed is now x0.5." and e.speed == 0.5
     assert "not running" in e.command("crash NOR")
+    assert "not running" in e.command("rain start")
+    assert "Usage" in e.command("rain maybe")
     assert "No driver called" in e.command("plan XYZ")
     assert "Name one driver" in e.command("why")
     assert "has not changed yet" in e.command("why PIA")
 
     assert e.command("start").startswith("Lights out")
     assert e.command("start") == "The race has already started."
+    assert e.command("rain start").startswith("Rain started")
+    assert e.command("rain stop").startswith("Rain stopped")
     assert "Safety car deployed" in e.command("crash norris")
     assert "not racing" in e.command("plan NOR")
     assert "A* checked" in e.command("plan pia")

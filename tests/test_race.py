@@ -79,8 +79,24 @@ def test_every_plan_change_names_its_cause():
     changes = [i for i in race.board.feed if isinstance(i, DecisionChange)]
     assert changes
     for change in changes:
-        assert change.cause in {"driver", "rival", "incident", "laps"}
+        assert change.cause in {"driver", "rival", "incident", "weather", "laps", "team"}
         assert change.before != change.after and change.because
+
+
+def test_rain_makes_teams_switch_to_wet_tyres_and_back():
+    race = Race(42)
+    race.start()
+    run(race, lambda r: r.lap == 4)
+    assert race.start_rain().startswith("Rain started") and race.start_rain() == "It is already raining."
+    race.rain_target = 0.9
+    run(race, lambda r: r.lap == 9)
+    running = [c for c in race.cars.values() if c.state == "RUNNING"]
+    assert sum(c.tyre == "WET" for c in running) >= len(running) - 1
+    assert any(isinstance(i, DecisionChange) and i.cause == "weather" for i in race.board.feed)
+    assert race.stop_rain().startswith("Rain stopped")
+    run(race)
+    assert race.rain == 0.0
+    assert all(c.used & {"SOFT", "MEDIUM", "HARD"} for c in race.cars.values())
 
 
 def test_team_radio_stays_inside_the_team():

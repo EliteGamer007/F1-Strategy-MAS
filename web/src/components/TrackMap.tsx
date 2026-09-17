@@ -33,6 +33,10 @@ function draw(canvas: HTMLCanvasElement, track: Track, box: ReturnType<typeof bo
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, width, height);
+  if (state.rain.level > 0) {
+    ctx.fillStyle = `rgba(37,99,235,${0.25 * state.rain.level})`;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   // Fit the circuit into the panel, keeping its shape (map y points up, canvas y points down).
   const scale = Math.min((width - 2 * PAD) / (box.maxX - box.minX), (height - 2 * PAD) / (box.maxY - box.minY));
