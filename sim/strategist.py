@@ -47,6 +47,7 @@ class StrategistAgent(mesa.Agent):
         self.rival_stint = {}
         self.rival_laps_seen = {}
         self.shared = set()
+        self.moves = {}                                     # code -> undercut / overcut waiting for its result
         self.announced = False
         for car in cars:
             self.set_plan(car, self.best_plan(car).stops)
@@ -139,6 +140,7 @@ class StrategistAgent(mesa.Agent):
                 self.lap_done(car)
             self.call_in(car)
         self.watch_rivals()
+        self.report_moves()
 
     def after_stop(self, car):
         try:
@@ -336,8 +338,37 @@ class StrategistAgent(mesa.Agent):
         detail = (f"Minimax against {rival.name}: stop now -> {stop_value:+.1f} s, "
                   f"wait a lap -> {min((v for (o, _), v in leaves.items() if o == 'STAY'), default=float('nan')):+.1f} s "
                   f"(+ means ahead of {rival.name}); {pruned} option(s) pruned by alpha-beta.")
-        outcome = "keeps us ahead" if value >= 0 else "loses the least time to them"
         if move == "PIT" and plan[0] > now and self.skipped_for_box.get(car.code) != now:
-            self.change_plan(car, (now, plan[1]), f"{because} Stopping now {outcome}.", "rival", detail)
+            if gap < 0:
+                kind, why = "undercut", f"Undercut on {rival.name}: stop now so our new tyres get us ahead."
+            else:
+                kind, why = "cover", f"Cover {rival.name}'s undercut: stop now to stay ahead."
+            self.change_plan(car, (now, plan[1]), f"{because} {why}", "rival", detail)
         elif move == "STAY" and plan[0] == now and rival_pitted:
-            self.change_plan(car, (now + 1, plan[1]), f"{because} Staying out one more lap {outcome}.", "rival", detail)
+            kind, why = "overcut", f"Overcut on {rival.name}: stay out one more lap while they are in the pits."
+            self.change_plan(car, (now + 1, plan[1]), f"{because} {why}", "rival", detail)
+        else:
+            return
+        self.moves[car.code] = {"rival": rival.code, "kind": kind, "stops": car.stops,
+                                "rival_stops": rival.stops - (1 if rival_pitted and not rival.stopped_in_box else 0),
+                                "was_ahead": gap >= 0, "lap": race.lap}
+
+    def report_moves(self):
+        """Once both cars have stopped, tell our driver whether the undercut, cover or overcut worked."""
+        race = self.model
+        for code, move in list(self.moves.items()):
+            car, rival = race.cars[code], race.cars[move["rival"]]
+            if car.state not in ("RUNNING", "PIT") or rival.state not in ("RUNNING", "PIT") or race.lap > move["lap"] + 5:
+                del self.moves[code]
+                continue
+            if car.stops <= move["stops"] or rival.stops <= move["rival_stops"] or car.in_pit or rival.in_pit:
+                continue
+            del self.moves[code]
+            ahead = car.dist > rival.dist
+            if move["kind"] == "cover":
+                verdict = f"it worked, you stayed ahead of {rival.name}" if ahead else f"it did not work, {rival.name} got ahead"
+                text = f"Covering {rival.name}'s undercut: {verdict}."
+            else:
+                verdict = f"you are now ahead of {rival.name}" if ahead else f"{rival.name} is still ahead"
+                text = f"The {move['kind']} {'worked' if ahead else 'did not work'}: {verdict}."
+            race.board.post(race.lap, self.name, car.name, "INFO", text, self.team)

@@ -132,6 +132,17 @@ def test_every_attack_has_a_defence_answer_and_an_announced_result(seed):
     assert attacks and len(attacks) == len(answers) == len(results)
 
 
+def test_undercuts_are_announced_and_their_result_is_reported():
+    race = Race(1)
+    race.start()
+    run(race)
+    moves = [c for c in race.board.feed if isinstance(c, DecisionChange) and c.cause == "rival"]
+    results = [i.text for i in race.board.feed if not isinstance(i, DecisionChange)
+               and i.sender.endswith("strategist") and ("undercut" in i.text or "overcut" in i.text)]
+    assert any("Undercut on" in c.because or "Cover" in c.because or "Overcut on" in c.because for c in moves)
+    assert results and all("work" in t for t in results)
+
+
 def test_team_radio_stays_inside_the_team():
     board = MessageBoard()
     board.join("Norris", "McLaren")
