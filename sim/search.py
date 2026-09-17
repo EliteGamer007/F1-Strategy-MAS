@@ -1,6 +1,7 @@
-"""The search algorithms the agents use (AIMA): A* / uniform-cost search, minimax with alpha-beta, belief-state update."""
+"""The algorithms the agents use (AIMA): A* / uniform-cost search, minimax with alpha-beta, and Bayes' rule."""
 import heapq
 import itertools
+import math
 import time
 from dataclasses import dataclass
 
@@ -101,7 +102,12 @@ def minimax_duel(evaluate, our_moves=("PIT", "STAY"), rival_moves=("PIT", "STAY"
     return best_move, alpha, leaves, pruned
 
 
-def update_belief(belief, observed_trend, predicted_trend, tolerance):
-    """Belief-state filtering: keep the wear levels whose predicted lap-time trend matches what we observed."""
-    kept = {level for level in belief if abs(predicted_trend[level] - observed_trend) <= tolerance}
-    return kept or {min(belief, key=lambda level: abs(predicted_trend[level] - observed_trend))}
+def bayes_update(prior, log_likelihood):
+    """Bayes' rule over a few hypotheses: posterior is proportional to prior x likelihood.
+
+    Likelihoods are passed as logarithms and shifted by their maximum so tiny numbers do not underflow.
+    """
+    best = max(log_likelihood.values())
+    weights = {h: prior[h] * math.exp(log_likelihood[h] - best) for h in prior}
+    total = sum(weights.values())
+    return {h: w / total for h, w in weights.items()}

@@ -147,15 +147,15 @@ class Engine:
         ucs = strategist.best_plan(car, use_heuristic=False)
         stops = " then ".join(describe(stop) for stop in astar.stops) or describe(None)
         minutes, seconds = divmod(astar.cost, 60)
-        beliefs = ", ".join(f"{code}: {' or '.join(sorted(level.lower() for level in levels))}"
-                            for code, levels in sorted(strategist.belief.items())) or "not enough clean laps yet"
+        beliefs = "; ".join(f"{code}: " + ", ".join(f"{level.lower()} {p:.0%}" for level, p in belief.items())
+                            for code, belief in sorted(strategist.belief.items())) or "not enough clean laps yet"
         return "\n".join([
             f"{car.name} ({car.team}) on lap {self.race.lap}: {tyre_word(car.tyre)} tyres, {car.age} laps old, {car.stops} stop(s) so far.",
             f"Current plan: {describe(strategist.plan[car.code])}.",
             f"A* best plan now: {stops}. Predicted time for the rest of the race: {int(minutes)}:{seconds:04.1f}.",
             f"A* checked {astar.expanded} plans in {astar.ms:.1f} ms. Uniform-cost search checked {ucs.expanded} plans "
             f"in {ucs.ms:.1f} ms for the same answer.",
-            f"{car.team}'s guess of rival tyre wear (belief states): {beliefs}.",
+            f"{car.team}'s Bayesian estimate of rival tyre wear: {beliefs}.",
         ])
 
     def why(self, car):

@@ -241,6 +241,8 @@ class Race(mesa.Model):
         return math.floor((after - mark) / L) > math.floor((before - mark) / L)
 
     def move(self, car):
+        if car.in_pit:
+            car.lap_clean = False  # in-laps and out-laps include the stop, so they say nothing about tyre wear
         if car.stop_left > 0:
             car.stop_left -= DT
             if car.stop_left <= 0:

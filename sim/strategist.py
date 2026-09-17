@@ -1,19 +1,31 @@
-"""Strategist agent: plans tyre stops with A*, guesses rival tyre wear with belief states, decides close fights with minimax."""
+"""Strategist agent: plans tyre stops with A*, estimates rival tyre wear with Bayes' rule, decides close fights with minimax."""
 import mesa
 import numpy as np
 
 from sim.driver import tyre_word
 from sim.model import WEAR_LEVELS
-from sim.search import PitState, minimax_duel, plan_stops, update_belief
+from sim.search import PitState, bayes_update, minimax_duel, plan_stops
 
 ROUTINE_GAIN_S = 1.0    # a plan change without a new message or event must save at least this much time
 TRIGGERED_GAIN_S = 0.05
 DUEL_GAP_S = 3.0        # a rival this close makes the stop timing a two-player game
-LAP_TIME_NOISE_S = 0.15
+SHARE_CONFIDENCE = 0.8  # tell our drivers once we are this sure a rival's tyres wear unusually
+UNIFORM = {level: 1 / len(WEAR_LEVELS) for level in WEAR_LEVELS}
 
 
 def describe(plan):
     return "no more tyre stops" if plan is None else f"change to {tyre_word(plan[1])} tyres at the end of lap {plan[0]}"
+
+
+def wear_log_likelihood(model, laps, level):
+    """Log-likelihood of a stint's lap times if the driver's tyre wear is `level`.
+
+    Lap time = unknown constant (the driver's pace) + the model's tyre-wear and fuel effect + noise.
+    The constant is fitted out with the mean residual, so only the lap-time trend over the stint counts.
+    The noise is the race model's lap-to-lap noise (Gaussian).
+    """
+    residuals = np.array([lap["time"] - model.lap_time(lap["tyre"], lap["age"], lap["lap"], WEAR_LEVELS[level]) for lap in laps])
+    return -float(np.sum((residuals - residuals.mean()) ** 2)) / (2 * model.noise ** 2)
 
 
 class StrategistAgent(mesa.Agent):
@@ -29,8 +41,11 @@ class StrategistAgent(mesa.Agent):
         self.called_in = {}                                 # code -> lap we told the driver to come in
         self.stops_seen = {c.code: 0 for c in cars}
         self.laps_seen = {c.code: 0 for c in cars}
-        self.belief = {}                                    # rival code -> possible wear levels
+        self.belief = {}                                    # rival code -> {wear level: probability}
+        self.stint_prior = {}                               # rival code -> belief at the start of the current stint
+        self.rival_stint = {}
         self.rival_laps_seen = {}
+        self.shared = set()
         self.announced = False
         for car in cars:
             self.set_plan(car, self.best_plan(car).stops)
@@ -201,26 +216,45 @@ class StrategistAgent(mesa.Agent):
 
     # ------------------------------------------------------------------ rivals
     def watch_rivals(self):
-        """Belief-state update from the public lap times: which wear levels still fit each rival's lap-time trend?"""
-        model = self.model.model
+        """Bayesian estimate of each rival's hidden tyre wear from the public lap times.
+
+        Prior: every wear level equally likely. After each lap: posterior = prior x likelihood of the clean laps
+        in the rival's current stint. When the rival stops, the posterior becomes the prior for the next stint.
+        """
         for rival in self.model.cars.values():
             if rival.team == self.team or len(rival.history) == self.rival_laps_seen.get(rival.code, 0):
                 continue
             self.rival_laps_seen[rival.code] = len(rival.history)
-            stint = [h for h in rival.history if h["stops"] == rival.stops and h["clean"]]
-            if len(stint) < 4:
+            if rival.stops != self.rival_stint.get(rival.code, 0):
+                self.rival_stint[rival.code] = rival.stops
+                self.stint_prior[rival.code] = self.wear_belief(rival)
+            stint = [lap for lap in rival.history if lap["stops"] == rival.stops and lap["clean"]]
+            if len(stint) < 3:
                 continue
-            ages = np.array([h["age"] for h in stint], dtype=float)
-            times = np.array([h["time"] for h in stint])
-            trend = float(np.polyfit(ages, times, 1)[0])
-            tyre = stint[-1]["tyre"]
-            predicted = {level: model.tyres[tyre].wear * mult + model.fuel for level, mult in WEAR_LEVELS.items()}
-            tolerance = max(0.03, 2 * LAP_TIME_NOISE_S / np.sqrt(np.sum((ages - ages.mean()) ** 2)))
-            self.belief[rival.code] = update_belief(self.belief.get(rival.code, set(WEAR_LEVELS)), trend, predicted, tolerance)
+            likelihood = {level: wear_log_likelihood(self.model.model, stint, level) for level in WEAR_LEVELS}
+            self.belief[rival.code] = bayes_update(self.stint_prior.get(rival.code, UNIFORM), likelihood)
+            self.share_estimate(rival)
+
+    def wear_belief(self, rival):
+        return self.belief.get(rival.code, UNIFORM)
 
     def believed_wear(self, rival):
-        levels = self.belief.get(rival.code, set(WEAR_LEVELS))
-        return sum(WEAR_LEVELS[level] for level in levels) / len(levels)
+        """Expected wear multiplier under our current probabilities."""
+        return sum(p * WEAR_LEVELS[level] for level, p in self.wear_belief(rival).items())
+
+    def share_estimate(self, rival):
+        """Tell the nearest of our drivers once we are fairly sure a rival's tyres wear faster or slower than normal."""
+        level, p = max(self.wear_belief(rival).items(), key=lambda item: item[1])
+        running = [car for car in self.cars if car.state == "RUNNING"]
+        if level == "NORMAL" or p < SHARE_CONFIDENCE or (rival.code, rival.stops) in self.shared or not running:
+            return
+        self.shared.add((rival.code, rival.stops))
+        car = min(running, key=lambda c: abs(c.dist - rival.dist))
+        faster = level == "HIGH"
+        self.model.board.post(
+            self.model.lap, self.name, car.name, "INFO",
+            f"Tyre estimate from the timing screen: {rival.name}'s tyres are wearing {'faster' if faster else 'slower'} "
+            f"than normal ({p:.0%} likely). Expect him to stop {'early' if faster else 'late'}.", self.team)
 
     def duel(self, car, rival, rival_pitted, because):
         """Minimax over 'stop now' vs 'stop next lap' against a close rival (undercut / overcut)."""

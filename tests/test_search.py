@@ -1,9 +1,11 @@
+import math
 import random
 
 import pytest
 
 from sim.model import LapModel
-from sim.search import PitState, minimax_duel, plan_stops, update_belief
+from sim.search import PitState, bayes_update, minimax_duel, plan_stops
+from sim.strategist import UNIFORM, wear_log_likelihood
 
 
 @pytest.fixture(scope="module")
@@ -67,7 +69,18 @@ def test_minimax_when_the_rival_has_already_stopped():
     assert (move, value) == ("STAY", 0.4)
 
 
-def test_belief_keeps_matching_levels_and_never_empties():
-    predicted = {"LOW": 0.0, "NORMAL": 0.05, "HIGH": 0.12}
-    assert update_belief({"LOW", "NORMAL", "HIGH"}, 0.11, predicted, 0.03) == {"HIGH"}
-    assert update_belief({"LOW", "NORMAL"}, 0.5, predicted, 0.03) == {"NORMAL"}
+def test_bayes_update_is_prior_times_likelihood_normalised():
+    prior = {"LOW": 1 / 3, "NORMAL": 1 / 3, "HIGH": 1 / 3}
+    posterior = bayes_update(prior, {"LOW": -10.0, "NORMAL": -2.0, "HIGH": 0.0})
+    assert sum(posterior.values()) == pytest.approx(1.0)
+    assert posterior["HIGH"] == pytest.approx(1 / (1 + math.exp(-2) + math.exp(-10)))
+    # a strong prior can outweigh weak evidence
+    assert bayes_update({"A": 0.99, "B": 0.01}, {"A": -1.0, "B": 0.0})["A"] > 0.9
+
+
+def test_wear_estimate_prefers_the_level_that_produced_the_lap_times(model):
+    rng = random.Random(3)
+    laps = [{"lap": lap, "tyre": "MEDIUM", "age": lap, "time": model.lap_time("MEDIUM", lap, lap, 1.5, pace=0.4) + rng.gauss(0, model.noise)}
+            for lap in range(2, 12)]
+    posterior = bayes_update(UNIFORM, {level: wear_log_likelihood(model, laps, level) for level in UNIFORM})
+    assert max(posterior, key=posterior.get) == "HIGH"
