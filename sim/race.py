@@ -23,6 +23,9 @@ YELLOW_ZONE_M = 400.0
 PLAN_HIGHLIGHT_S = 30.0   # how long a car is highlighted after its plan changed
 RAIN_CHANGE_PER_S = 0.006 # how quickly the track gets wetter or drier (rain level 0 dry .. 1 heaviest)
 RAIN_DRIFT = 0.2          # each lap the rain may get this much heavier or lighter (random)
+SLIPSTREAM = 1.10         # speed boost while completing an overtake on a straight
+OVERTAKE_ROOM_M = 300.0   # an attack needs at least this much straight left
+DEFEND_COST_S = 0.3       # lap time lost by a driver who defends
 
 
 @dataclass
@@ -51,6 +54,7 @@ class Car:
     last_lap: float | None = None
     finish_time: float | None = None
     stuck_s: float = 0.0
+    passing: dict | None = None  # overtake being completed: {'rival': code, 'corner': n}
     crash_at: float | None = None
     plan_changed_at: float = -1e9
     history: list = field(default_factory=list)   # public lap times (the timing screen)
@@ -77,8 +81,7 @@ class Race(mesa.Model):
         self.crash_marks = []
         self.box_free_at = {}
         self.first_checkpoint = {}
-        self.pass_attempts = {}
-        self.track_order = {}
+        self.pass_attempts = set()
         self.raining = False
         self.rain = 0.0
         self.rain_target = 0.0
@@ -290,7 +293,7 @@ class Race(mesa.Model):
             return speed if catching_up else speed / self.model.safety_car_factor
         if self.yellow and abs((d - self.yellow["at"] + self.track.length / 2) % self.track.length - self.track.length / 2) < YELLOW_ZONE_M:
             return speed * 0.85
-        return speed
+        return speed * SLIPSTREAM if car.passing else speed
 
     def passes(self, car, before, after, mark):
         L = self.track.length
@@ -354,34 +357,59 @@ class Race(mesa.Model):
         gap_needed = SAFETY_CAR_GAP_M if safety_car else FOLLOW_GAP_M
         for ahead, car in zip(on_track, on_track[1:]):
             gap = ahead.dist - car.dist
+            if car.passing and car.passing["rival"] == ahead.code:
+                continue  # the overtake is under way
             if gap >= gap_needed:
                 if gap > 3 * FOLLOW_GAP_M:
                     car.stuck_s = 0.0
                 continue
-            if not safety_car and self.may_pass(car, ahead):
+            if self.flag == "GREEN" and self.attack(car, ahead):
                 continue
             car.dist = max(before[car.code], ahead.dist - gap_needed)
             car.stuck_s += DT
             car.lap_clean = False
-        self.announce_overtakes()
+        self.finish_overtakes()
 
-    def may_pass(self, car, ahead):
-        """One overtaking attempt per straight, only for a car that is clearly faster (50% chance)."""
-        straight = self.track.straight_at(car.dist)
-        if straight is None or ahead.lap_target - car.lap_target < self.model.overtake_advantage:
+    def attack(self, car, ahead):
+        """The drivers decide: the car behind chooses whether to attack, the car ahead whether to defend."""
+        key = (car.code, ahead.code, car.laps_done)
+        if car.passing or key in self.pass_attempts or self.track.straight_left(car.dist) < OVERTAKE_ROOM_M:
             return False
-        key = (car.code, ahead.code, car.laps_done, straight)
-        if key not in self.pass_attempts:
-            self.pass_attempts[key] = self.random.random() < 0.5
-        return self.pass_attempts[key]
+        corner = self.track.corner_after_straight(car.dist)
+        if not self.drivers[car.code].wants_to_attack(ahead, corner):
+            return False
+        self.pass_attempts.add(key)
+        defends = self.drivers[ahead.code].defends_against(car, corner)
+        car.lap_clean = ahead.lap_clean = False
+        attacker_wear = self.model.wear_pct(car.tyre, car.age, car.wear)
+        defender_wear = self.model.wear_pct(ahead.tyre, ahead.age, ahead.wear)
+        chance = 0.35 + 0.4 * min(1.0, ahead.lap_target - car.lap_target) + 0.3 * (defender_wear - attacker_wear)
+        if defends:
+            ahead.lap_target += DEFEND_COST_S
+            chance -= 0.3
+        if car.team == ahead.team or self.random.random() < min(0.9, max(0.05, chance)):
+            car.passing = {"rival": ahead.code, "corner": corner}
+            return True
+        if defends:
+            self.post("Timing screen", f"{ahead.name} defends and keeps {car.name} behind into Turn {corner}.")
+        else:
+            self.post("Timing screen", f"{car.name} could not get past {ahead.name} into Turn {corner}.")
+        return False
 
-    def announce_overtakes(self):
-        order = [c for c in sorted(self.cars.values(), key=lambda c: -c.dist) if c.state == "RUNNING" and not c.in_pit]
-        previous, self.track_order = self.track_order, {c.code: i for i, c in enumerate(order)}
-        for ahead, car in zip(order, order[1:]):
-            if ahead.code in previous and car.code in previous and previous[ahead.code] > previous[car.code]:
-                ahead.stuck_s = 0.0
-                self.post("Timing screen", f"{ahead.name} overtook {car.name}.")
+    def finish_overtakes(self):
+        for car in self.cars.values():
+            if not car.passing:
+                continue
+            rival = self.cars[car.passing["rival"]]
+            corner = car.passing["corner"]
+            if car.dist > rival.dist + FOLLOW_GAP_M:
+                car.stuck_s = 0.0
+                self.post("Timing screen", f"{car.name} overtakes {rival.name} into Turn {corner}.")
+            elif car.state == "RUNNING" and rival.state == "RUNNING" and self.track.straight_at(car.dist) is not None:
+                continue
+            else:
+                self.post("Timing screen", f"{rival.name} holds on and keeps {car.name} behind at Turn {corner}.")
+            car.passing = None
 
     def record_checkpoints(self, car, before):
         for index in range(math.floor(before / CHECKPOINT_M) + 1, math.floor(car.dist / CHECKPOINT_M) + 1):

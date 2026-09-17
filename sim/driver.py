@@ -69,5 +69,29 @@ class DriverAgent(mesa.Agent):
             car.pit_tyre = None
             self.say("REPLY", "OK, staying out.")
 
+    def wants_to_attack(self, ahead, corner):
+        """Attack only with a clear pace advantage and tyres that are not worn out."""
+        race, car = self.model, self.car
+        advantage = ahead.lap_target - car.lap_target
+        wear = race.model.wear_pct(car.tyre, car.age, car.wear)
+        if advantage < race.model.overtake_advantage or wear > 0.8:
+            return False
+        self.say("INFO", f"Attacking {ahead.name} into Turn {corner}: I'm {advantage:.1f} s a lap faster "
+                         f"and my tyres are {wear:.0%} worn.", attack=ahead.code)
+        return True
+
+    def defends_against(self, attacker, corner):
+        """Defend, unless it is a teammate or our tyres are worn out (defending would only cost more time)."""
+        race, car = self.model, self.car
+        wear = race.model.wear_pct(car.tyre, car.age, car.wear)
+        if attacker.team == car.team:
+            self.say("INFO", f"Letting my teammate {attacker.name} through, he is faster.", defend=False)
+            return False
+        if wear > 0.9:
+            self.say("INFO", f"{attacker.name} is attacking, but my tyres are {wear:.0%} worn. Not fighting him.", defend=False)
+            return False
+        self.say("INFO", f"{attacker.name} is attacking me. Defending into Turn {corner}.", defend=True)
+        return True
+
     def crashed(self, corner):
         self.say("INFO", f"I've crashed at Turn {corner}. I'm OK, but the car is out of the race.", crashed=True)

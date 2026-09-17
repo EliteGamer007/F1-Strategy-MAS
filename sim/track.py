@@ -82,6 +82,14 @@ class Track:
         d %= self.length
         return next((i for i, (a, b) in enumerate(self.straights) if ((a <= d <= b) if a < b else (d >= a or d <= b))), None)
 
+    def straight_left(self, d):
+        """Metres left until the end of the long straight at lap distance d (0 if not on one)."""
+        i = self.straight_at(d)
+        return 0.0 if i is None else (self.straights[i][1] - d % self.length) % self.length
+
+    def corner_after_straight(self, d):
+        return self.nearest_corner(self.straights[self.straight_at(d)][1])
+
     def pit_progress(self, d):
         """Metres travelled along the pit lane for lap distance d (0 at the entry)."""
         return (d % self.length - PIT_ENTRY_M) % self.length

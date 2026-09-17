@@ -54,7 +54,7 @@ def test_no_overtaking_behind_the_safety_car():
     run(race, lambda r: r.flag == "SAFETY_CAR")
     seen = len(race.board.feed)
     run(race, lambda r: r.flag != "SAFETY_CAR")
-    assert not any("overtook" in getattr(i, "text", "") for i in race.board.feed[seen:])
+    assert not any(" overtakes " in getattr(i, "text", "") for i in race.board.feed[seen:])
 
 
 def test_cars_in_the_pit_lane_are_drawn_on_the_pit_lane():
@@ -118,6 +118,18 @@ def test_teammates_sharing_the_pit_box_double_stack_or_stay_out_a_lap(scenario):
     for change in stayed_out:
         assert "Waiting in the box" in change.detail
     assert len({(c.driver, c.before) for c in stayed_out}) == len(stayed_out), "the same box decision was repeated"
+
+
+@pytest.mark.parametrize("seed", [1, 42])
+def test_every_attack_has_a_defence_answer_and_an_announced_result(seed):
+    race = Race(seed)
+    race.start()
+    run(race)
+    texts = [i.text for i in race.board.feed if hasattr(i, "text")]
+    attacks = [t for t in texts if t.startswith("Attacking")]
+    answers = [t for t in texts if "is attacking" in t or t.startswith("Letting my teammate")]
+    results = [t for t in texts if " overtakes " in t or "behind into Turn" in t or "could not get past" in t or "holds on" in t]
+    assert attacks and len(attacks) == len(answers) == len(results)
 
 
 def test_team_radio_stays_inside_the_team():
