@@ -242,7 +242,7 @@ The drivers are deliberately simple reflex agents. Their rules:
 | The safety car is out | Ask whether to come in now |
 | Stuck > 20 s behind the same car | Report who is blocking me |
 | Told to pit early and my tyres feel fine (< 50 % worn) | Push back once |
-| Clear pace advantage (≥ 0.5 s) and tyres < 80 % worn, on a long straight | Attack the car ahead |
+| Pace advantage over the car ahead (≥ 0.1 s, `overtake_min_advantage_s`) and tyres < 80 % worn, on a long straight | Attack the car ahead |
 | Being attacked: teammate | Let him through |
 | Being attacked: tyres > 90 % worn | Do not fight (defending would cost more than it gains) |
 | Being attacked otherwise | Defend (costs 0.3 s of lap time) |
@@ -407,8 +407,10 @@ whole story), extracted once with FastF1 by `tools/extract_race_data.py` and fit
 | Rain effects, safety-car pit loss (10 s), lap noise (0.15 s) | Set by hand, documented in the JSON, because the real race was dry |
 | Piastri's HIGH tyre wear, the starting tyres, HAD in place of TSU | Set by hand for the demo, in `data/teams.json` |
 
-Driver pace differences are deliberately halved (`PACE_SPREAD`) so the cars stay close enough to
-actually race each other — a realistic 20-second spread would make a boring demo.
+Driver pace differences are scaled down to a quarter (`PACE_SPREAD = 0.25`) so the cars stay close
+enough to actually race each other — a realistic spread of tens of seconds would make a boring demo.
+The safety car runs for 2 laps and a car will attack for a pace advantage of 0.1 s, both tuned so
+that a 20-lap demo has enough happening in it.
 
 The app **never** connects to the internet or to any other project: everything it needs is in `data/`.
 

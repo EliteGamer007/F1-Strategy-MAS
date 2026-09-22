@@ -113,7 +113,7 @@ docs/               DOCUMENTATION.md and DEMO.md
 
 The app only reads `data/`. It does not use FastF1, the internet, or the F1-Telemetry-Analysis project.
 
-The demo does not copy the real race exactly: the race is 20 laps (tyre wear and fuel effect are scaled by 52/20), cars start on different tyres, Piastri has worse tyre wear than everyone else, and the real pace differences between drivers are halved so the cars race closely.
+The demo does not copy the real race exactly: the race is 20 laps (tyre wear and fuel effect are scaled by 52/20), cars start on different tyres, Piastri has worse tyre wear than everyone else, and the real pace differences between drivers are scaled down to a quarter so the cars race closely.
 
 ### How the data was made (only needed to regenerate it)
 
