@@ -5,4 +5,5 @@ __pycache__/
 node_modules/
 .next/
 *.log
-
+CLAUDE.md 
+docs/DEMO.md

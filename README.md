@@ -78,7 +78,6 @@ Drivers can be named by code or surname, e.g. `crash VER` or `plan piastri`.
 | Document | What is in it |
 |---|---|
 | **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** | The full case study: the problem, PEAS for both agent types, the environment analysis, the four algorithms with the reasoning behind each choice, how the agents interact, the tools, the data, the tests and the limitations. |
-| **[docs/DEMO.md](docs/DEMO.md)** | A 5-minute demo script: what to type, what to say, and what to do if something goes wrong. |
 
 ## Project structure
 
@@ -97,7 +96,7 @@ web/                Next.js page: timing tower, track map, radio feed
 data/               race data (see below)
 tools/              one-off scripts that produced data/
 tests/              python -m pytest  (33 tests, including a fuzz/stress test)
-docs/               DOCUMENTATION.md and DEMO.md
+docs/               DOCUMENTATION.md
 ```
 
 ## Data (already in this folder, nothing to download)
