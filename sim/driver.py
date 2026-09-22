@@ -34,7 +34,7 @@ class DriverAgent(mesa.Agent):
             self.say("INFO", f"My {tyre_word(car.tyre)} tyres are {wear:.0%} worn and I'm getting slower.",
                      wear=wear, age=car.age, tyre=car.tyre)
             if car.pit_tyre is None and race.flag != "CHEQUERED":
-                self.say("REQUEST", "Should I come in for new tyres?")
+                self.say("REQUEST", "Requesting pit stop — should I come in for fresh tyres?")
 
         if race.rain_label != "dry" and car.tyre != "WET" and ("rain", race.rain_label) not in self.said and car.pit_tyre is None:
             self.said.add(("rain", race.rain_label))
@@ -67,7 +67,7 @@ class DriverAgent(mesa.Agent):
             self.say("REPLY", f"OK, coming in for new {tyre_word(car.pit_tyre)} tyres.")
         elif action == "stay" and not car.in_pit:
             car.pit_tyre = None
-            self.say("REPLY", "OK, staying out.")
+            self.say("REPLY", "Understood. Staying out.")
 
     def wants_to_attack(self, ahead, corner):
         """Attack only with a clear pace advantage and tyres that are not worn out."""

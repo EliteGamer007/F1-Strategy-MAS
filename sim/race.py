@@ -13,7 +13,7 @@ from sim.track import PIT_BOX_M, PIT_ENTRY_M, PIT_EXIT_M, Track
 
 DT = 0.2                  # simulated seconds per step
 GRID_GAP_M = 8.0
-FOLLOW_GAP_M = 12.0       # closest a car can follow another when it cannot pass
+FOLLOW_GAP_M = 8.0        # closest a car can follow another when it cannot pass
 SAFETY_CAR_GAP_M = 40.0   # cars line up this far apart behind the safety car
 STOP_S = 2.5              # time stationary in the pit box
 BOX_RESET_S = 3.0         # the crew needs this long to get ready for the second car in the same box
@@ -21,10 +21,10 @@ FIRST_LAP_EXTRA_S = 3.0   # standing start
 CHECKPOINT_M = 100.0      # timing points used for the gaps
 YELLOW_ZONE_M = 400.0
 PLAN_HIGHLIGHT_S = 30.0   # how long a car is highlighted after its plan changed
-RAIN_CHANGE_PER_S = 0.006 # how quickly the track gets wetter or drier (rain level 0 dry .. 1 heaviest)
+RAIN_CHANGE_PER_S = 0.012 # how quickly the track gets wetter or drier (rain level 0 dry .. 1 heaviest)
 RAIN_DRIFT = 0.2          # each lap the rain may get this much heavier or lighter (random)
-SLIPSTREAM = 1.10         # speed boost while completing an overtake on a straight
-OVERTAKE_ROOM_M = 300.0   # an attack needs at least this much straight left
+SLIPSTREAM = 1.15         # speed boost while completing an overtake on a straight
+OVERTAKE_ROOM_M = 150.0   # an attack needs at least this much straight left
 DEFEND_COST_S = 0.3       # lap time lost by a driver who defends
 
 
@@ -200,7 +200,7 @@ class Race(mesa.Model):
             return "It is already raining."
         leader = self.leader()
         self.raining = True
-        self.rain_target = self.random.uniform(0.3, 1.0)  # how hard it rains comes from the race seed
+        self.rain_target = self.random.uniform(0.6, 1.0)  # how hard it rains comes from the race seed
         self.rain_lap = leader.laps_done if leader else 0
         self.post("Race control", "It has started to rain.", rain="starting")
         return "Rain started. How hard it rains is random and can change every lap."
@@ -372,7 +372,8 @@ class Race(mesa.Model):
 
     def attack(self, car, ahead):
         """The drivers decide: the car behind chooses whether to attack, the car ahead whether to defend."""
-        key = (car.code, ahead.code, car.laps_done)
+        # Key by half-lap bucket so the same pair can battle again each lap.
+        key = (car.code, ahead.code, int(car.dist / (self.track.length / 2)))
         if car.passing or key in self.pass_attempts or self.track.straight_left(car.dist) < OVERTAKE_ROOM_M:
             return False
         corner = self.track.corner_after_straight(car.dist)
@@ -383,10 +384,10 @@ class Race(mesa.Model):
         car.lap_clean = ahead.lap_clean = False
         attacker_wear = self.model.wear_pct(car.tyre, car.age, car.wear)
         defender_wear = self.model.wear_pct(ahead.tyre, ahead.age, ahead.wear)
-        chance = 0.35 + 0.4 * min(1.0, ahead.lap_target - car.lap_target) + 0.3 * (defender_wear - attacker_wear)
+        chance = 0.5 + 0.4 * min(1.0, ahead.lap_target - car.lap_target) + 0.3 * (defender_wear - attacker_wear)
         if defends:
             ahead.lap_target += DEFEND_COST_S
-            chance -= 0.3
+            chance -= 0.2
         if car.team == ahead.team or self.random.random() < min(0.9, max(0.05, chance)):
             car.passing = {"rival": ahead.code, "corner": corner}
             return True

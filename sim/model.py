@@ -7,7 +7,7 @@ DATA = Path(__file__).resolve().parents[1] / "data"
 TYRES = ("SOFT", "MEDIUM", "HARD")          # dry tyres
 ALL_TYRES = TYRES + ("WET",)
 WEAR_LEVELS = {"LOW": 0.75, "NORMAL": 1.0, "HIGH": 1.5}
-PACE_SPREAD = 0.5         # real pace differences are halved so the cars stay close enough to race each other
+PACE_SPREAD = 0.25         # real pace differences are halved so the cars stay close enough to race each other
 WORN_OUT_S_PER_LAP = 1.0  # extra time for every lap a tyre is used past its life
 
 

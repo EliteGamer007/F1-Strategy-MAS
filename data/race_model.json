@@ -79,7 +79,7 @@
     "note": "median of 24 green-flag stops"
   },
   "safety_car": {
-    "laps": 3,
+    "laps": 2,
     "lap_time_factor": 1.4,
     "pit_loss_s": 10.0,
     "source": "hand"
@@ -94,7 +94,7 @@
   "traffic": {
     "within_s": 1.0,
     "penalty_s": 0.3,
-    "overtake_min_advantage_s": 0.5,
+    "overtake_min_advantage_s": 0.1,
     "source": "hand"
   },
   "lap_noise_s": {
