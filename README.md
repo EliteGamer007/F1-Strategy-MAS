@@ -4,6 +4,8 @@ A multi-agent F1 race strategy demo for the AI Search Methods case study.
 4 teams race 20 laps of Silverstone. Each team has **3 agents**: a **strategist** that plans tyre stops and **2 drivers** that race and report back (12 agents in total).
 You control the race from a terminal and watch it on a web page.
 
+See **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** for the full write-up and **[docs/DEMO.md](docs/DEMO.md)** for the demo script.
+
 ## Objectives
 
 1. **Show the problem as an AI problem**: PEAS, and an environment that is partially observable, stochastic, dynamic and multi-agent.
@@ -37,6 +39,12 @@ Type `start` in the first terminal. The page shows:
 - **Play / pause button** to freeze the race and read the decisions, and **×0.5 / ×1 / ×2 / ×4 buttons** for race speed.
 - **Weather chip**: dry, or light / medium / heavy rain and whether it is getting heavier or lighter.
 
+Tests:
+
+```bash
+python -m pytest -q                # 33 tests, about 35 s
+```
+
 ## Terminal commands
 
 | Command | What it does |
@@ -65,23 +73,12 @@ Drivers can be named by code or surname, e.g. `crash VER` or `plan piastri`.
 - **Crashes**: both Ferraris crash at random points in every race. The first crash brings a yellow flag (drivers slow down near it); the second brings out the **safety car**. `crash <driver>` always brings out the safety car. Behind the safety car nobody can overtake and a tyre stop is much cheaper, so every strategist re-plans at once.
 - The race ends with a summary of how many plans were changed by drivers, rivals, incidents, the weather and the pit box.
 
-## The Bayesian tyre-wear estimator (and why it is Bayesian)
+## Documentation
 
-**The problem.** A strategist cannot see how fast a rival's tyres wear; only lap times are public (the timing screen). Lap times are noisy (±0.15 s) and also depend on the driver's own pace, which is hidden too.
-
-**How it works** (`watch_rivals` and `wear_log_likelihood` in `sim/strategist.py`, `bayes_update` in `sim/search.py`):
-
-1. **Hypotheses**: the rival's wear is LOW (×0.75), NORMAL (×1.0) or HIGH (×1.5).
-2. **Prior**: all three equally likely (1/3 each).
-3. **Likelihood**: for each hypothesis, predict the rival's lap times in the current stint with the race model. The driver's unknown pace is a constant offset, so it is fitted out; what remains is how well the *trend* of the lap times matches, scored with Gaussian noise of 0.15 s (the noise in `data/race_model.json`).
-4. **Posterior**: prior × likelihood, normalised (Bayes' rule). Recomputed after every lap from the stint's clean laps (no in-laps, out-laps, traffic, yellow flags or safety car), so no lap is counted twice. When the rival stops, the posterior becomes the prior for the next stint.
-5. **Use**: the expected wear (probability-weighted) goes into the minimax undercut/overcut decision, `plan <driver>` prints the probabilities, and a strategist radios its nearest driver once it is at least 80% sure a rival's tyres wear unusually.
-
-**Why Bayesian instead of simply keeping the levels that "fit"?** Lap times are noisy. A hard yes/no rule either throws away the right answer after one unlucky lap or keeps every level for most of the race. Probabilities say *how sure* we are, grow more certain as laps accumulate, and plug straight into expected values for decisions.
-
-**Why only three levels instead of a continuous (Kalman) filter?** Three levels are enough to change a decision (stop early, normal or late), the calculation is exact and fits on one slide, and each number can be checked by hand.
-
-**Evidence.** `tests/test_search.py` checks Bayes' rule and that the estimator recovers the level that produced a set of lap times. In full races with seeds 5, 7 and 9, rival strategists identify Piastri's high tyre wear with 86–99% probability by the end, and in the seeds we tested it never became confident about a wrong level.
+| Document | What is in it |
+|---|---|
+| **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)** | The full case study: the problem, PEAS for both agent types, the environment analysis, the four algorithms with the reasoning behind each choice, how the agents interact, the tools, the data, the tests and the limitations. |
+| **[docs/DEMO.md](docs/DEMO.md)** | A 5-minute demo script: what to type, what to say, and what to do if something goes wrong. |
 
 ## Project structure
 
@@ -99,8 +96,8 @@ server/             FastAPI + WebSocket server, commands, terminal
 web/                Next.js page: timing tower, track map, radio feed
 data/               race data (see below)
 tools/              one-off scripts that produced data/
-tests/              python -m pytest
-docs/               the case study plan
+tests/              python -m pytest  (33 tests, including a fuzz/stress test)
+docs/               DOCUMENTATION.md and DEMO.md
 ```
 
 ## Data (already in this folder, nothing to download)
