@@ -236,12 +236,12 @@ class StrategistAgent(mesa.Agent):
             if plan != before:
                 return  # the change of plan was already radioed
             if plan is None:
-                self.radio(car, "Stay out: no more stops needed — bring it home.", action="stay")
+                self.radio(car, "Stay out: no more stops needed - bring it home.", action="stay")
             elif plan[0] > car.laps_done + 1 and race.rain_label != "dry" and car.tyre != "WET":
-                self.radio(car, f"Hold position. Rain is {race.rain_label} and {race.rain_trend()} — "
+                self.radio(car, f"Hold position. Rain is {race.rain_label} and {race.rain_trend()} - "
                                 f"dry tyres are still faster for now. Plan: {describe(plan)}.", action="stay")
             elif plan[0] > car.laps_done + 1:
-                self.radio(car, f"Not yet — stay out. Planned stop: {describe(plan)}.", action="stay")
+                self.radio(car, f"Not yet - stay out. Planned stop: {describe(plan)}.", action="stay")
         elif msg.kind == "REPLY" and msg.data.get("push_back"):
             self.learn_wear(car, msg.data)
             self.called_in.pop(car.code, None)
@@ -249,7 +249,7 @@ class StrategistAgent(mesa.Agent):
             plan = self.plan[car.code]
             if plan is not None and plan[0] == car.laps_done + 1:
                 self.called_in[car.code] = plan[0]
-                self.radio(car, "Understood, but box now anyway — stopping this lap is still the fastest option.",
+                self.radio(car, "Understood, but box now anyway - stopping this lap is still the fastest option.",
                            action="pit", tyre=plan[1], final=True)
 
     def learn_wear(self, car, data):
@@ -340,12 +340,12 @@ class StrategistAgent(mesa.Agent):
                   f"(+ means ahead of {rival.name}); {pruned} option(s) pruned by alpha-beta.")
         if move == "PIT" and plan[0] > now and self.skipped_for_box.get(car.code) != now:
             if gap < 0:
-                kind, why = "undercut", f"Undercut {rival.name}: pit now — fresh tyres will get us ahead of them."
+                kind, why = "undercut", f"Undercut {rival.name}: pit now - fresh tyres will get us ahead of them."
             else:
                 kind, why = "cover", f"Cover {rival.name}'s undercut: pit now to stay ahead."
             self.change_plan(car, (now, plan[1]), f"{because} {why}", "rival", detail)
         elif move == "STAY" and plan[0] == now and rival_pitted:
-            kind, why = "overcut", f"Overcut {rival.name}: stay out while they are in the pits — we gain track position."
+            kind, why = "overcut", f"Overcut {rival.name}: stay out while they are in the pits - we gain track position."
             self.change_plan(car, (now + 1, plan[1]), f"{because} {why}", "rival", detail)
         else:
             return

@@ -34,7 +34,7 @@ class DriverAgent(mesa.Agent):
             self.say("INFO", f"My {tyre_word(car.tyre)} tyres are {wear:.0%} worn and I'm getting slower.",
                      wear=wear, age=car.age, tyre=car.tyre)
             if car.pit_tyre is None and race.flag != "CHEQUERED":
-                self.say("REQUEST", "Requesting pit stop — should I come in for fresh tyres?")
+                self.say("REQUEST", "Requesting pit stop - should I come in for fresh tyres?")
 
         if race.rain_label != "dry" and car.tyre != "WET" and ("rain", race.rain_label) not in self.said and car.pit_tyre is None:
             self.said.add(("rain", race.rain_label))
